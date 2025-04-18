@@ -23,7 +23,7 @@ jobs:
       run: mvn clean package
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3.1.2
+      uses: actions/upload-artifact@v4
       with:
         name: keycloak-mapper-jar
         path: target/*.jar
