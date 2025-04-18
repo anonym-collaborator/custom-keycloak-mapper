@@ -5,6 +5,7 @@ import org.keycloak.protocol.oidc.mappers.*;
 import org.keycloak.protocol.oidc.*;
 import org.keycloak.provider.*;
 import org.keycloak.representations.IDToken;
+import org.keycloak.representations.AccessToken;
 
 import java.util.*;
 import java.util.stream.Collectors;
