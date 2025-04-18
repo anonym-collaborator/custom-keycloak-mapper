@@ -45,12 +45,14 @@ public class CustomRealmRoleOnlyMapper extends AbstractOIDCProtocolMapper implem
         return configProperties;
     }
 
-    protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession, KeycloakSession session) {
+    protected void setClaim(IDToken token, ProtocolMapperModel mappingModel,
+                            UserSessionModel userSession, KeycloakSession session) {
+
         RealmModel realm = session.getContext().getRealm();
         UserModel user = userSession.getUser();
         RoleModel defaultRole = realm.getRole("default-roles-" + realm.getName());
 
-        Set<RoleModel> realmRoles = user.getRoleMappings().stream()
+        Set<RoleModel> realmRoles = user.getRoleMappingsStream()
                 .filter(r -> r.getContainer() instanceof RealmModel)
                 .filter(r -> !includesRole(r, defaultRole))
                 .collect(Collectors.toSet());
@@ -61,11 +63,8 @@ public class CustomRealmRoleOnlyMapper extends AbstractOIDCProtocolMapper implem
         }
     }
 
-    private boolean includesRole(RoleModel role, RoleModel roleToExclude) {
-        if (role.equals(roleToExclude)) return true;
-        if (role.isComposite()) {
-            return role.getComposites().stream().anyMatch(r -> includesRole(r, roleToExclude));
-        }
-        return false;
+    private boolean includesRole(RoleModel role, RoleModel target) {
+        if (role.equals(target)) return true;
+        return role.getCompositesStream().anyMatch(r -> includesRole(r, target));
     }
 }
