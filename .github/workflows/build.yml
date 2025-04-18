@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up JDK 21
       uses: actions/setup-java@v4
@@ -23,7 +23,7 @@ jobs:
       run: mvn clean package
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v3.1.2
       with:
         name: keycloak-mapper-jar
         path: target/*.jar
