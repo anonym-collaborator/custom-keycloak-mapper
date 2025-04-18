@@ -48,19 +48,15 @@ public class CustomRealmRoleOnlyMapper extends AbstractOIDCProtocolMapper implem
     protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession, KeycloakSession session) {
         RealmModel realm = session.getContext().getRealm();
         UserModel user = userSession.getUser();
-
-        Set<RoleModel> realmRoles = user.getRealmRoleMappings();
-
         RoleModel defaultRole = realm.getRole("default-roles-" + realm.getName());
 
-        // Filter out default roles and any composites containing it
-        Set<String> customRoles = realmRoles.stream()
-            .filter(role -> !includesRole(role, defaultRole))
-            .map(RoleModel::getName)
-            .collect(Collectors.toSet());
+        Set<RoleModel> realmRoles = user.getRoleMappings().stream()
+                .filter(r -> r.getContainer() instanceof RealmModel)
+                .filter(r -> !includesRole(r, defaultRole))
+                .collect(Collectors.toSet());
 
-        if (customRoles.size() == 1) {
-            String roleName = customRoles.iterator().next();
+        if (realmRoles.size() == 1) {
+            String roleName = realmRoles.iterator().next().getName();
             OIDCAttributeMapperHelper.mapClaim(token, mappingModel, roleName);
         }
     }
