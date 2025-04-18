@@ -45,6 +45,7 @@ public class CustomRealmRoleOnlyMapper extends AbstractOIDCProtocolMapper implem
         return configProperties;
     }
 
+    @Override
     protected void setClaim(IDToken token, ProtocolMapperModel mappingModel,
                             UserSessionModel userSession, KeycloakSession session) {
 
