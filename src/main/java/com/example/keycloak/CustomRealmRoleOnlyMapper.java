@@ -1,9 +1,9 @@
 package com.example.keycloak;
 
 import org.keycloak.models.*;
-import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.mappers.*;
-import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.protocol.oidc.*;
+import org.keycloak.provider.*;
 import org.keycloak.representations.IDToken;
 
 import java.util.*;
@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 public class CustomRealmRoleOnlyMapper extends AbstractOIDCProtocolMapper implements OIDCAccessTokenMapper, OIDCIDTokenMapper {
 
-    public static final String PROVIDER_ID = "custom-realm-role-only-mapper";
+    public static final String PROVIDER_ID = "auto-custom-realm-role-mapper";
 
     private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
 
@@ -22,22 +22,17 @@ public class CustomRealmRoleOnlyMapper extends AbstractOIDCProtocolMapper implem
 
     @Override
     public String getDisplayCategory() {
-        return "Role Mappers";
+        return "Token Mapper";
     }
 
     @Override
     public String getDisplayType() {
-        return "Single Custom Realm Role Mapper";
+        return "Auto Custom Realm Role Mapper";
     }
 
     @Override
     public String getHelpText() {
-        return "Adds the user's only custom realm-level role (excluding default/composite) to the token if exactly one exists.";
-    }
-
-    @Override
-    public List<ProviderConfigProperty> getConfigProperties() {
-        return configProperties;
+        return "Includes only custom realm role(s) in access token, excluding default-roles-<realm>";
     }
 
     @Override
@@ -46,40 +41,35 @@ public class CustomRealmRoleOnlyMapper extends AbstractOIDCProtocolMapper implem
     }
 
     @Override
-    protected void setClaim(IDToken token, ProtocolMapperModel mappingModel,
-                            UserSessionModel userSession, KeycloakSession session) {
+    public List<ProviderConfigProperty> getConfigProperties() {
+        return configProperties;
+    }
 
+    protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession, KeycloakSession session) {
         RealmModel realm = session.getContext().getRealm();
         UserModel user = userSession.getUser();
+
+        Set<RoleModel> realmRoles = user.getRealmRoleMappings();
+
         RoleModel defaultRole = realm.getRole("default-roles-" + realm.getName());
 
-        Set<RoleModel> realmRoles = user.getRoleMappings().stream()
-                .filter(r -> r.getContainer() instanceof RealmModel)
-                .filter(r -> !includesRole(r, defaultRole))
-                .collect(Collectors.toSet());
+        // Filter out default roles and any composites containing it
+        Set<String> customRoles = realmRoles.stream()
+            .filter(role -> !includesRole(role, defaultRole))
+            .map(RoleModel::getName)
+            .collect(Collectors.toSet());
 
-        if (realmRoles.size() == 1) {
-            String roleName = realmRoles.iterator().next().getName();
+        if (customRoles.size() == 1) {
+            String roleName = customRoles.iterator().next();
             OIDCAttributeMapperHelper.mapClaim(token, mappingModel, roleName);
         }
     }
 
-    private boolean includesRole(RoleModel role, RoleModel target) {
-        if (role.equals(target)) return true;
-        return role.getCompositesStream().anyMatch(r -> includesRole(r, target));
-    }
-
-    public static ProtocolMapperModel create(String name, String claimName, boolean access, boolean id) {
-        ProtocolMapperModel mapper = new ProtocolMapperModel();
-        mapper.setName(name);
-        mapper.setProtocolMapper(PROVIDER_ID);
-        mapper.setProtocol(OIDCLoginProtocol.LOGIN_PROTOCOL);
-
-        Map<String, String> config = new HashMap<>();
-        config.put(OIDCAttributeMapperHelper.TOKEN_CLAIM_NAME, claimName);
-        config.put(OIDCAttributeMapperHelper.INCLUDE_IN_ACCESS_TOKEN, String.valueOf(access));
-        config.put(OIDCAttributeMapperHelper.INCLUDE_IN_ID_TOKEN, String.valueOf(id));
-        mapper.setConfig(config);
-        return mapper;
+    private boolean includesRole(RoleModel role, RoleModel roleToExclude) {
+        if (role.equals(roleToExclude)) return true;
+        if (role.isComposite()) {
+            return role.getComposites().stream().anyMatch(r -> includesRole(r, roleToExclude));
+        }
+        return false;
     }
 }
